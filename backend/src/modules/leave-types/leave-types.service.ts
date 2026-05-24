@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { getUploadsRoot } from '../../common/uploads-root';
 import { CreateLeaveTypeDto } from './dto/create-leave-type.dto';
 import { UpdateLeaveTypeDto } from './dto/update-leave-type.dto';
 
@@ -94,10 +96,36 @@ const defaultLeaveTypes: LeaveTypeRecord[] = [
 
 @Injectable()
 export class LeaveTypesService {
-  private readonly dataPath = join(process.cwd(), 'data', 'leave-types.json');
+  private readonly dataPath = this.resolveDataPath();
+
+  private resolveDataPath() {
+    const configured = process.env.LEAVE_TYPES_DATA_PATH?.trim();
+    if (configured) {
+      return resolve(configured);
+    }
+
+    const uploadsPath = join(getUploadsRoot(), 'leave-types.json');
+    if (process.env.NODE_ENV === 'production') {
+      return uploadsPath;
+    }
+
+    const legacyPath = join(process.cwd(), 'data', 'leave-types.json');
+    if (existsSync(legacyPath)) {
+      return legacyPath;
+    }
+
+    return uploadsPath;
+  }
 
   private async ensureDataFile() {
-    await mkdir(dirname(this.dataPath), { recursive: true });
+    try {
+      await mkdir(dirname(this.dataPath), { recursive: true });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Leave types storage path is not writable (${this.dataPath}). ` +
+          'Configure LEAVE_TYPES_DATA_PATH or UPLOAD_ROOT to a writable directory.',
+      );
+    }
 
     try {
       await readFile(this.dataPath, 'utf8');
@@ -113,7 +141,7 @@ export class LeaveTypesService {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.sort((a, b) => a.leaveName.localeCompare(b.leaveName));
+    return parsed.sort((a, b) => String(a.leaveName || '').localeCompare(String(b.leaveName || '')));
   }
 
   private async writeAll(records: LeaveTypeRecord[]) {
