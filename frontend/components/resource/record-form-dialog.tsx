@@ -1220,6 +1220,7 @@ function EmployeeAssignmentPicker({
 }) {
   const [groupFilter, setGroupFilter] = useState("all");
   const [finder, setFinder] = useState("");
+  const [assignedFinder, setAssignedFinder] = useState("");
   const rawValue = form.watch(field.name) || "";
 
   const selectedIds = useMemo(() => parseEmployeeIdsCsv(rawValue), [rawValue]);
@@ -1241,6 +1242,18 @@ function EmployeeAssignmentPicker({
     if (!term) return byGroup;
     return byGroup.filter((employee) => employee.label.toLowerCase().includes(term));
   }, [employeeAssignment.employees, finder, groupFilter, groupMembers]);
+
+  const selectedEmployees = useMemo(() => {
+    return employeeAssignment.employees
+      .filter((employee) => selectedIds.has(employee.id))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [employeeAssignment.employees, selectedIds]);
+
+  const filteredSelectedEmployees = useMemo(() => {
+    const term = assignedFinder.trim().toLowerCase();
+    if (!term) return selectedEmployees;
+    return selectedEmployees.filter((employee) => employee.label.toLowerCase().includes(term));
+  }, [assignedFinder, selectedEmployees]);
 
   function writeSelected(next: Set<number>) {
     const ids = Array.from(next).sort((a, b) => a - b);
@@ -1281,6 +1294,13 @@ function EmployeeAssignmentPicker({
     writeSelected(next);
   }
 
+  function removeSelectedEmployee(employeeId: number) {
+    if (!selectedIds.has(employeeId)) return;
+    const next = new Set(selectedIds);
+    next.delete(employeeId);
+    writeSelected(next);
+  }
+
   return (
     <div className={clsx("md:col-span-2", className)}>
       <input type="hidden" {...form.register(field.name)} />
@@ -1312,6 +1332,15 @@ function EmployeeAssignmentPicker({
               placeholder="Search employee"
             />
           </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">Assigned Search</span>
+            <Input
+              className="h-9 rounded-md border-line bg-white"
+              value={assignedFinder}
+              onChange={(event) => setAssignedFinder(event.target.value)}
+              placeholder="Find assigned member"
+            />
+          </label>
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1341,22 +1370,67 @@ function EmployeeAssignmentPicker({
           </button>
         </div>
 
-        <div className="max-h-[220px] space-y-1 overflow-y-auto border border-line bg-white p-2">
-          {filteredEmployees.map((employee) => {
-            const checked = selectedIds.has(employee.id);
-            return (
-              <label key={employee.id} className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-line accent-[#0051d5]"
-                  checked={checked}
-                  onChange={(event) => toggleEmployee(employee.id, event.target.checked)}
-                />
-                <span className="min-w-0 text-sm text-slate-700">{employee.label}</span>
-              </label>
-            );
-          })}
-          {filteredEmployees.length === 0 ? <p className="px-2 py-2 text-sm text-slate-500">No employees found.</p> : null}
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+          <div className="border border-line bg-white">
+            <div className="border-b border-line px-2.5 py-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                Available Members ({filteredEmployees.length})
+              </p>
+            </div>
+            <div className="max-h-[240px] space-y-1 overflow-y-auto p-2">
+              {filteredEmployees.map((employee) => {
+                const checked = selectedIds.has(employee.id);
+                return (
+                  <label key={employee.id} className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-line accent-[#0051d5]"
+                      checked={checked}
+                      onChange={(event) => toggleEmployee(employee.id, event.target.checked)}
+                    />
+                    <span className="min-w-0 text-sm text-slate-700">{employee.label}</span>
+                  </label>
+                );
+              })}
+              {filteredEmployees.length === 0 ? <p className="px-2 py-2 text-sm text-slate-500">No employees found.</p> : null}
+            </div>
+          </div>
+
+          <div className="border border-line bg-white">
+            <div className="flex items-center justify-between border-b border-line px-2.5 py-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                Assigned Members ({selectedIds.size})
+              </p>
+              <button
+                type="button"
+                className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={clearAll}
+                disabled={selectedIds.size === 0}
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="max-h-[240px] space-y-1 overflow-y-auto p-2">
+              {filteredSelectedEmployees.map((employee) => (
+                <div key={`assigned-${employee.id}`} className="flex items-start justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50">
+                  <span className="min-w-0 text-sm text-slate-700">{employee.label}</span>
+                  <button
+                    type="button"
+                    className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                    onClick={() => removeSelectedEmployee(employee.id)}
+                    aria-label={`Remove ${employee.label}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              {filteredSelectedEmployees.length === 0 ? (
+                <p className="px-2 py-2 text-sm text-slate-500">
+                  {selectedIds.size === 0 ? "No members assigned yet." : "No assigned members match your search."}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <p className="text-xs text-slate-500">
