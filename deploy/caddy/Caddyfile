@@ -1,0 +1,5 @@
+localhost, 127.0.0.1 {
+  tls internal
+  encode gzip zstd
+  reverse_proxy web:3001
+}

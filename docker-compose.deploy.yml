@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vmjamtech_hr_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: igno_hr_dev
+      POSTGRES_USER: vpos
+      POSTGRES_PASSWORD: vpos
+    ports:
+      - "5432:5432"
+    volumes:
+      - vmjamtech_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vpos -d igno_hr_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vmjamtech_hr_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://vpos:vpos@postgres:5432/igno_hr_dev?schema=public
+      JWT_ACCESS_SECRET: vmjamtech-hr-access-secret-change-in-production
+      JWT_REFRESH_SECRET: vmjamtech-hr-refresh-secret-change-in-production
+      JWT_ACCESS_EXPIRES_IN: 1d
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: http://localhost:3004,http://127.0.0.1:3004
+      UPLOAD_ROOT: /data/hrms/uploads
+      SEED_ADMIN_USERNAME: superadmin
+      SEED_ADMIN_PASSWORD: Super@admin123
+    ports:
+      - "3005:3000"
+    volumes:
+      - vmjamtech_uploads:/data/hrms/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api/v1
+        BACKEND_PROXY_ORIGIN: http://api:3000
+        NEXT_PUBLIC_APP_URL: http://localhost:3004
+    container_name: vmjamtech_hr_web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      HOSTNAME: 0.0.0.0
+      BACKEND_PROXY_ORIGIN: http://api:3000
+      NEXT_PUBLIC_API_BASE_URL: /api/v1
+      NEXT_PUBLIC_APP_URL: http://localhost:3004
+    ports:
+      - "3004:3001"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/login"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  api_migrator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: build
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://vpos:vpos@postgres:5432/igno_hr_dev?schema=public
+      SEED_ADMIN_USERNAME: superadmin
+      SEED_ADMIN_PASSWORD: Super@admin123
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend_old/prisma/db/hrdb.sqlite:/data/legacy/hrdb.sqlite:ro
+    command: >
+      sh -c "npx prisma migrate deploy &&
+      npm run migrate:legacy -- --sqlite /data/legacy/hrdb.sqlite &&
+      npm run prisma:seed"
+
+volumes:
+  vmjamtech_postgres_data:
+  vmjamtech_uploads:

@@ -1,0 +1,56 @@
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700;800&family=Zilla+Slab:wght@600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #ffffff;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: "Inter", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+::selection {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Zilla Slab", Georgia, serif;
+}
+
+code,
+kbd,
+samp {
+  font-family: "Fira Code", Consolas, monospace;
+}

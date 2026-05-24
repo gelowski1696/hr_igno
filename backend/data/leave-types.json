@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "leaveName": "Vacation Leave",
+    "type": "Paid",
+    "leaveUnit": "Day",
+    "status": "Active",
+    "note": "",
+    "duration": 1,
+    "createdBy": "HR Department",
+    "carryOver": "Allowed",
+    "notificationPeriod": "24 hours prior",
+    "maxLeaves": 30,
+    "annualLimit": 15
+  },
+  {
+    "id": 2,
+    "leaveName": "Sick Leave",
+    "type": "Paid",
+    "leaveUnit": "Day",
+    "status": "Active",
+    "note": "",
+    "duration": 1,
+    "createdBy": "HR Department",
+    "carryOver": "Not allowed",
+    "notificationPeriod": "On filing",
+    "maxLeaves": 30,
+    "annualLimit": 15
+  },
+  {
+    "id": 3,
+    "leaveName": "Leave Without Pay",
+    "type": "Unpaid",
+    "leaveUnit": "Day",
+    "status": "Active",
+    "note": "No balance deduction.",
+    "duration": 1,
+    "createdBy": "HR Department",
+    "carryOver": "Not allowed",
+    "notificationPeriod": "24 hours prior",
+    "maxLeaves": 365,
+    "annualLimit": 365
+  },
+  {
+    "id": 4,
+    "leaveName": "Half Day AM",
+    "type": "Unpaid",
+    "leaveUnit": "Half Day",
+    "status": "Active",
+    "note": "",
+    "duration": 1,
+    "createdBy": "HR Department",
+    "carryOver": "Not allowed",
+    "notificationPeriod": "Same day",
+    "maxLeaves": 365,
+    "annualLimit": 365
+  },
+  {
+    "id": 5,
+    "leaveName": "Half Day PM",
+    "type": "Unpaid",
+    "leaveUnit": "Half Day",
+    "status": "Active",
+    "note": "",
+    "duration": 1,
+    "createdBy": "HR Department",
+    "carryOver": "Not allowed",
+    "notificationPeriod": "Same day",
+    "maxLeaves": 365,
+    "annualLimit": 365
+  }
+]

@@ -1,0 +1,22 @@
+services:
+  api:
+    environment:
+      CORS_ORIGINS: https://localhost:3443,https://127.0.0.1:3443,http://localhost:3004,http://127.0.0.1:3004
+
+  web_https:
+    image: caddy:2-alpine
+    container_name: vmjamtech_hr_web_https
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "3443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - vmjamtech_caddy_data:/data
+      - vmjamtech_caddy_config:/config
+
+volumes:
+  vmjamtech_caddy_data:
+  vmjamtech_caddy_config:
