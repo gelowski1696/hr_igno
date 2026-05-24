@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ActivityLogInterceptor } from './common/logging/activity-log.interceptor';
+import { ActivityLogService } from './common/logging/activity-log.service';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AllowancesModule } from './modules/allowances/allowances.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -58,9 +60,14 @@ import { UsersModule } from './modules/users/users.module';
     ReportsModule,
   ],
   providers: [
+    ActivityLogService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityLogInterceptor,
     },
   ],
 })

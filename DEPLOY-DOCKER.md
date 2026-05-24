@@ -84,6 +84,28 @@ This will:
 - Frontend (HTTPS deploy mode): `https://localhost:3443/login`
 - API Health: `http://localhost:3005/api/v1/health`
 
+## Activity Logs (Sentry-like file logging)
+
+The backend now writes request/activity/error logs as JSON lines:
+
+- Container path: `/data/hrms/uploads/logs/activity.log`
+- Host (Docker volume): inside `vmjamtech_uploads` volume
+
+Pull and inspect on VPS:
+
+```bash
+# live tail
+docker exec -it vmjamtech_hr_api sh -lc 'tail -f /data/hrms/uploads/logs/activity.log'
+
+# copy to local server path
+docker cp vmjamtech_hr_api:/data/hrms/uploads/logs/activity.log /root/hr_igno_activity.log
+```
+
+Optional env overrides:
+
+- `ACTIVITY_LOG_PATH` (custom file path)
+- `ACTIVITY_LOG_SKIP_PATHS` (comma-separated prefixes, default `/api/v1/health`)
+
 ## Notes
 
 - Copy the full project folder to the target machine, including `backend_old/`.

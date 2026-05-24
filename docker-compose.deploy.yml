@@ -34,6 +34,8 @@ services:
       JWT_REFRESH_EXPIRES_IN: 7d
       CORS_ORIGINS: http://localhost:3004,http://127.0.0.1:3004
       UPLOAD_ROOT: /data/hrms/uploads
+      ACTIVITY_LOG_PATH: /data/hrms/uploads/logs/activity.log
+      ACTIVITY_LOG_SKIP_PATHS: /api/v1/health
       SEED_ADMIN_USERNAME: superadmin
       SEED_ADMIN_PASSWORD: Super@admin123
     ports:

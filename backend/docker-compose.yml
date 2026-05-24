@@ -21,6 +21,8 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/igno_hr_dev?schema=public
+      ACTIVITY_LOG_PATH: /data/hrms/uploads/logs/activity.log
+      ACTIVITY_LOG_SKIP_PATHS: /api/v1/health
     ports:
       - "3000:3000"
     volumes:
@@ -37,4 +39,3 @@ services:
 volumes:
   igno_hr_postgres:
   igno_hr_uploads:
-
