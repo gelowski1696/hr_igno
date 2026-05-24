@@ -10,6 +10,12 @@ type RequestUser = {
   role?: string;
 };
 
+type ActivityTrackedRequest = Request & {
+  user?: RequestUser;
+  id?: string;
+  __activityLogged?: boolean;
+};
+
 const SENSITIVE_FIELD_NAMES = new Set([
   'password',
   'passwordhash',
@@ -37,7 +43,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler) {
     const http = context.switchToHttp();
-    const request = http.getRequest<Request & { user?: RequestUser; id?: string }>();
+    const request = http.getRequest<ActivityTrackedRequest>();
     const response = http.getResponse<Response>();
 
     if (!request || !response) {
@@ -73,6 +79,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((result) => {
+        request.__activityLogged = true;
         this.activityLog.log({
           ...base,
           level: 'info',
@@ -85,6 +92,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
         });
       }),
       catchError((error: unknown) => {
+        request.__activityLogged = true;
         this.activityLog.log({
           ...base,
           level: 'error',
@@ -228,4 +236,3 @@ function truncate(value: string, max = 500) {
   if (value.length <= max) return value;
   return `${value.slice(0, max)}... [truncated ${value.length - max} chars]`;
 }
-
