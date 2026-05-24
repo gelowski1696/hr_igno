@@ -75,10 +75,10 @@ function readRows(db: Database.Database, table: string): LegacyRow[] {
 }
 
 function readTableNames(db: Database.Database): string[] {
-  return db
+  const rows = db
     .prepare("select name from sqlite_master where type = 'table' order by name")
-    .all()
-    .map((row: { name: string }) => row.name);
+    .all() as Array<{ name: string }>;
+  return rows.map((row) => row.name);
 }
 
 function nonNull<T>(value: T | null | undefined, fallback: T): T {
