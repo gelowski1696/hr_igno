@@ -22,6 +22,9 @@ export type GeoPoint = {
 
 export type RemoteClockAction = "time-in" | "time-out";
 
+export const GEO_LOCATION_USAGE_EXCEEDED_MESSAGE =
+  "GEO Location Usage Exceeded. Please upgrade your plan or buy more credits to continue using GEO Location.";
+
 export function formatCoordinates(point: GeoPoint) {
   return `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`;
 }

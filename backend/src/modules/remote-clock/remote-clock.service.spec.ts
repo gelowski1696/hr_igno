@@ -1,10 +1,20 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { RemoteClockService } from './remote-clock.service';
+import { GEO_LOCATION_USAGE_EXCEEDED_MESSAGE, RemoteClockService } from './remote-clock.service';
 
 describe('RemoteClockService', () => {
   const fixedNow = new Date('2026-05-08T04:00:00.000Z');
+  const originalLocationIqApiKey = process.env.LOCATIONIQ_API_KEY;
 
-  function makeService(overrides: Record<string, unknown> = {}) {
+  afterEach(() => {
+    if (originalLocationIqApiKey === undefined) {
+      delete process.env.LOCATIONIQ_API_KEY;
+    } else {
+      process.env.LOCATIONIQ_API_KEY = originalLocationIqApiKey;
+    }
+    jest.restoreAllMocks();
+  });
+
+  function makeService(overrides: Record<string, unknown> = {}, options: { stubLocationLabel?: boolean } = {}) {
     const prisma: any = {
       employee: {
         findUnique: jest.fn(),
@@ -18,7 +28,9 @@ describe('RemoteClockService', () => {
     };
     const service = new RemoteClockService(prisma);
     (service as any).now = jest.fn(() => fixedNow);
-    (service as any).resolveLocationLabel = jest.fn(async () => 'Makati City, Metro Manila');
+    if (options.stubLocationLabel !== false) {
+      (service as any).resolveLocationLabel = jest.fn(async () => 'Makati City, Metro Manila');
+    }
 
     return { service, prisma };
   }
@@ -142,5 +154,41 @@ describe('RemoteClockService', () => {
         imagePath: '/uploads/employee-time-record/7-out.png',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('reports GEO Location usage exhaustion from LocationIQ', async () => {
+    process.env.LOCATIONIQ_API_KEY = 'test-key';
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: jest.fn().mockResolvedValue(JSON.stringify({ error: 'Daily usage exceeded' })),
+    } as unknown as Response);
+    const { service } = makeService({}, { stubLocationLabel: false });
+
+    await expect(service.resolveLocation('14.5547,121.0244')).rejects.toThrow(
+      GEO_LOCATION_USAGE_EXCEEDED_MESSAGE,
+    );
+  });
+
+  it('falls back to Nominatim when LocationIQ fails for a non-quota reason', async () => {
+    process.env.LOCATIONIQ_API_KEY = 'test-key';
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: jest.fn().mockResolvedValue(JSON.stringify({ error: 'Temporary geocoder error' })),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ display_name: 'Makati City, Metro Manila' }),
+      } as unknown as Response);
+    const { service } = makeService({}, { stubLocationLabel: false });
+
+    await expect(service.resolveLocation('14.5547,121.0244')).resolves.toEqual({
+      location: '14.5547,121.0244',
+      address: 'Makati City, Metro Manila',
+    });
   });
 });

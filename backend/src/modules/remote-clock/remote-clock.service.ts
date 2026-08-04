@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const GEO_LOCATION_USAGE_EXCEEDED_MESSAGE =
+  'GEO Location Usage Exceeded. Please upgrade your plan or buy more credits to continue using GEO Location.';
 
 type RemoteClockInput = {
   employeeId: number;
@@ -179,12 +181,19 @@ export class RemoteClockService {
         headers: { 'Accept-Language': 'en' },
       });
       if (!response.ok) {
+        const payload = await readResponseBody(response);
+        if (isGeoLocationUsageExceeded(response.status, payload)) {
+          throw new BadRequestException(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE);
+        }
         return null;
       }
       const payload = (await response.json()) as { display_name?: string };
       const address = payload.display_name?.trim();
       return address || null;
-    } catch {
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       return null;
     }
   }
@@ -233,4 +242,41 @@ export function parseCoordinates(location: string): Coordinates {
     throw new BadRequestException('Invalid location format');
   }
   return { lat: latValue, lon: lonValue };
+}
+
+async function readResponseBody(response: Response) {
+  const text = await response.text().catch(() => '');
+  if (!text.trim()) {
+    return '';
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function isGeoLocationUsageExceeded(status: number, payload: unknown) {
+  const text = stringifyPayload(payload).toLowerCase();
+  const mentionsQuota =
+    text.includes('usage exceeded') ||
+    text.includes('quota exceeded') ||
+    text.includes('credit') ||
+    text.includes('upgrade your plan') ||
+    text.includes('rate limit');
+
+  return status === 402 || status === 429 || ((status === 400 || status === 403) && mentionsQuota);
+}
+
+function stringifyPayload(payload: unknown): string {
+  if (typeof payload === 'string') {
+    return payload;
+  }
+
+  if (payload && typeof payload === 'object') {
+    return Object.values(payload as Record<string, unknown>).map(stringifyPayload).join(' ');
+  }
+
+  return '';
 }

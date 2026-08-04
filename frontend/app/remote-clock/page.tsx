@@ -22,6 +22,7 @@ import {
   buildRemoteClockFilename,
   employeeFullName,
   formatCoordinates,
+  GEO_LOCATION_USAGE_EXCEEDED_MESSAGE,
   isClockableEmployee,
   lookupRemoteClockEmployee,
   resolveRemoteClockAddress,
@@ -263,12 +264,8 @@ export default function RemoteClockPage() {
           setLocationAddress("Resolving address...");
           setLocationStatus("granted");
           resolveRemoteClockAddress(formatted)
-            .then((address) => {
-              setLocationAddress(looksLikeCoordinates(address) ? "Address unavailable" : address);
-            })
-            .catch(() => {
-              setLocationAddress("Address unavailable");
-            });
+            .then(applyResolvedAddress)
+            .catch(handleAddressResolutionError);
           resolve(formatted);
         },
         (error) => {
@@ -298,12 +295,8 @@ export default function RemoteClockPage() {
         await requestLocation();
       } else if (!locationAddress) {
         resolveRemoteClockAddress(location)
-          .then((address) => {
-            setLocationAddress(looksLikeCoordinates(address) ? "Address unavailable" : address);
-          })
-          .catch(() => {
-            setLocationAddress("Address unavailable");
-          });
+          .then(applyResolvedAddress)
+          .catch(handleAddressResolutionError);
       }
       await loadFaceModels();
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -388,6 +381,21 @@ export default function RemoteClockPage() {
     setLocationAddress("");
     setClockActionModalOpen(false);
     setMessage(null);
+  }
+
+  function applyResolvedAddress(address: string) {
+    setLocationAddress(looksLikeCoordinates(address) ? "Address unavailable" : address);
+  }
+
+  function handleAddressResolutionError(error: unknown) {
+    const text = error instanceof Error ? error.message : "";
+    if (text.includes(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE)) {
+      setLocationAddress(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE);
+      setMessage({ type: "error", text: GEO_LOCATION_USAGE_EXCEEDED_MESSAGE });
+      return;
+    }
+
+    setLocationAddress("Address unavailable");
   }
 
   return (
