@@ -21,11 +21,9 @@ import { APP_NAME } from "@/lib/brand";
 import {
   buildRemoteClockFilename,
   employeeFullName,
-  formatCoordinates,
   GEO_LOCATION_USAGE_EXCEEDED_MESSAGE,
   isClockableEmployee,
   lookupRemoteClockEmployee,
-  resolveRemoteClockAddress,
   submitRemoteClock,
   type RemoteClockAction,
   type RemoteClockEmployee
@@ -240,43 +238,11 @@ export default function RemoteClockPage() {
     }
   }
 
-  async function requestLocation() {
-    const host = window.location.hostname;
-    const isLoopbackHost = host === "localhost" || host === "127.0.0.1" || host === "::1";
-    const hasSecureOrigin = window.isSecureContext || isLoopbackHost;
-    if (!hasSecureOrigin) {
-      setLocationStatus("denied");
-      throw new Error(
-        `Location requires HTTPS on mobile browsers. Current origin (${window.location.origin}) is not secure.`
-      );
-    }
-
-    if (!navigator.geolocation) {
-      setLocationStatus("denied");
-      throw new Error("Geolocation is not supported by this browser.");
-    }
-
-    const point = await new Promise<string>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const formatted = formatCoordinates(position.coords);
-          setLocation(formatted);
-          setLocationAddress("Resolving address...");
-          setLocationStatus("granted");
-          resolveRemoteClockAddress(formatted)
-            .then(applyResolvedAddress)
-            .catch(handleAddressResolutionError);
-          resolve(formatted);
-        },
-        (error) => {
-          setLocationStatus("denied");
-          reject(new Error(geolocationErrorMessage(error)));
-        },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
-      );
-    });
-
-    return point;
+  async function requestLocation(): Promise<string> {
+    setLocation("");
+    setLocationAddress(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE);
+    setLocationStatus("denied");
+    throw new Error(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE);
   }
 
   async function startCapture() {
@@ -291,13 +257,7 @@ export default function RemoteClockPage() {
     }
 
     try {
-      if (!location) {
-        await requestLocation();
-      } else if (!locationAddress) {
-        resolveRemoteClockAddress(location)
-          .then(applyResolvedAddress)
-          .catch(handleAddressResolutionError);
-      }
+      await requestLocation();
       await loadFaceModels();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 720 } },
@@ -353,7 +313,7 @@ export default function RemoteClockPage() {
     setSubmitting(action);
     setMessage(null);
     try {
-      const currentLocation = location || (await requestLocation());
+      const currentLocation = await requestLocation();
       await submitRemoteClock(action, {
         employeeId: employee.id,
         location: currentLocation,
@@ -381,21 +341,6 @@ export default function RemoteClockPage() {
     setLocationAddress("");
     setClockActionModalOpen(false);
     setMessage(null);
-  }
-
-  function applyResolvedAddress(address: string) {
-    setLocationAddress(looksLikeCoordinates(address) ? "Address unavailable" : address);
-  }
-
-  function handleAddressResolutionError(error: unknown) {
-    const text = error instanceof Error ? error.message : "";
-    if (text.includes(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE)) {
-      setLocationAddress(GEO_LOCATION_USAGE_EXCEEDED_MESSAGE);
-      setMessage({ type: "error", text: GEO_LOCATION_USAGE_EXCEEDED_MESSAGE });
-      return;
-    }
-
-    setLocationAddress("Address unavailable");
   }
 
   return (
@@ -739,23 +684,6 @@ function employeeStatusIcon(status: string) {
     return <Clock3 className="h-3.5 w-3.5" />;
   }
   return <AlertCircle className="h-3.5 w-3.5" />;
-}
-
-function geolocationErrorMessage(error: GeolocationPositionError) {
-  if (error.code === error.PERMISSION_DENIED) {
-    return "Location permission denied. Allow location access in browser settings and try again.";
-  }
-  if (error.code === error.POSITION_UNAVAILABLE) {
-    return "Unable to determine device location. Check GPS/Wi-Fi and try again.";
-  }
-  if (error.code === error.TIMEOUT) {
-    return "Location request timed out. Move to an open area and retry.";
-  }
-  return error.message || "Unable to retrieve location.";
-}
-
-function looksLikeCoordinates(value: string) {
-  return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value.trim());
 }
 
 function hasValidDetectionBox(detection: unknown) {
